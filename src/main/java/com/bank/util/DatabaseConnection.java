@@ -1,8 +1,11 @@
 package com.bank.util;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
 
 /**
  * Centralized connection factory. Every DAO calls getConnection() from here
@@ -18,17 +21,34 @@ import java.sql.SQLException;
  */
 public class DatabaseConnection {
 
-    // In production these would come from a config file or environment
-    // variables, never hardcoded — flagging that awareness matters even
-    // in a student project.
-    private static final String URL = "jdbc:mysql://localhost:3306/bank_db";
-    private static final String USER = "root";
-    private static final String PASSWORD = "admin123"; 
+    // Credentials are now externalized into config.properties (not committed
+    // to Git) instead of being hardcoded — this is standard practice so
+    // secrets never end up in version control.
+    private static final Properties props = new Properties();
+
+    static {
+        try (InputStream input = DatabaseConnection.class
+                .getClassLoader()
+                .getResourceAsStream("config.properties")) {
+            if (input == null) {
+                throw new RuntimeException(
+                    "config.properties not found on classpath. " +
+                    "Create src/main/resources/config.properties with db.url, db.username, db.password."
+                );
+            }
+            props.load(input);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load config.properties", e);
+        }
+    }
 
     public static Connection getConnection() throws SQLException {
         // Modern JDBC (4.0+) auto-loads the driver via SPI (META-INF/services),
         // so Class.forName("com.mysql.cj.jdbc.Driver") is no longer required —
         // but knowing it's not required (and why) is itself an interview point.
-        return DriverManager.getConnection(URL, USER, PASSWORD);
+        String url = props.getProperty("db.url");
+        String user = props.getProperty("db.username");
+        String password = props.getProperty("db.password");
+        return DriverManager.getConnection(url, user, password);
     }
 }
